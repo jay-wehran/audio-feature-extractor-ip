@@ -1,0 +1,24 @@
+# Build artifacts
+out
+*.out
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.exe
+
+# HLS / tool-generated build directories
+build/
+dist/
+*.log
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Python cache
+__pycache__/
+*.pyc
