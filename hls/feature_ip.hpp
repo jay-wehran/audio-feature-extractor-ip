@@ -16,6 +16,10 @@ struct FeaturePacket {
     int zcr;
 };
 
+void feature_ip(int16_t sample_in, 
+                bool sample_valid, 
+                FeaturePacket& packet_out, 
+                bool& packet_valid);
 
 int64_t extract_energy(int16_t sample);
 
