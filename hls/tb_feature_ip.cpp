@@ -4,68 +4,137 @@
 
 #include "feature_ip.hpp"
 #include <cstdio>
+#include <cmath>
+#include <vector>
+#include <string>
 
-int main() {
+static const int FRAME_LENGTH = 32;
+static const int RNG_SEED = 12345;
 
-    std::vector<int16_t> samples {
-        0,1,2,3,4,5,6,7,8,9,
-       10,11,12,13,14,15,16,17,18,19,
-       20,21,22,23,24,25,26,27,28,29,
-       30,31,32,33,34,35,36,37,38,39,
-       40,41,42,43,44,45,46,47,48,49,
-       50,51,52,53,54,55,56,57,58,59,
-       60,61,62,63,64,65,66,67,69,69,
-       70,71,72,73,74,75,76,77,78,79,
-       80,81,82,83,84,85,86,87,88,89,
-       90,91,92,93,94,95,96
-    };
+// --- test matrices ---
 
-    std::vector<FeaturePacket> fp_collection;
-    FeaturePacket fp;
+// random noise samples taken from tes_vectors.json
+// no way to easily reporoduce the Mersenne Twister RNG algo
+// in C++
+static const std::vector<int16_t> RANDOM_FRAME = {
+      -147, 500, -980, 679, 690, 644, -389, 751,
+      -246, 908, -604, -447, 159, -107, -669, -236,
+      -746, 790, -114, -466, 151, 284, -643, 252,
+      132,-618, -274, 511, 962, 500, -814, 87
+};
 
+std::vector<int16_t> gen_all_zeros() {
+    return std::vector<int16_t>(FRAME_LENGTH, 0);
+}
 
-    const int frame_length = 32;
-    uint64_t accumulated_energy = 0;
-    int accumulated_zcr = 0;
-    int frame_id = 0;
-    int16_t previous_sample = 0;
-    bool have_prev = false;
+std::vector<int16_t> gen_all_positive() {
+    return std::vector<int16_t>(FRAME_LENGTH, 1000);
+}
 
-    for (size_t i = 0; i < samples.size(); i++) {
-        accumulated_energy += extract_energy(samples[i]);
+std::vector<int16_t> gen_alternating() {
+    std::vector<int16_t> frame(FRAME_LENGTH);
+    for (int i = 0; i < FRAME_LENGTH; i++) {
+        frame[i] = (i % 2 == 0) ? 1000 : -1000;
+    }
+    return frame;
+}
 
-        if (have_prev) {
-            if (detect_zcr(previous_sample, samples[i])) {
-                accumulated_zcr++;
+std::vector<int16_t> gen_sine_wave() {
+    std::vector<int16_t> frame(FRAME_LENGTH);
+    for (int i = 0; i < FRAME_LENGTH; i++) {
+        double value = 1000.0 * sin(2.0 * M_PI * 2.0 * i / FRAME_LENGTH);
+        frame[i] = (int16_t)round(value);
+    }
+    return frame;
+}
+
+std::vector<int16_t> gen_random_noise() {
+    return std::vector<int16_t>(RANDOM_FRAME.begin(), RANDOM_FRAME.end());
+}
+
+// --- test bench ---
+
+struct Expected{
+    uint64_t energy;
+    int zcr;
+};
+
+Expected compute_expected(const std::vector<int16_t>& frame) {
+    uint64_t energy = 0;
+
+    for (int i = 0; i < FRAME_LENGTH; i++) {
+        energy += (int64_t)frame[i] * frame[i];
+    }
+
+    int zcr = 0;
+    for (int i = 1; i < FRAME_LENGTH; i++) {
+        if ((frame[i-1] >= 0 && frame[i] < 0) ||
+            (frame[i-1] < 0 && frame[i] >= 0)) {
+                zcr++;
             }
         }
+    return { energy, zcr }; 
+}
 
-        previous_sample = samples[i];
-        have_prev = true;
+void run_test(const std::string& name,
+              const std::vector<int16_t>& frame,
+              const Expected& expected,
+              int& pass_count,
+              int& fail_count) 
+    {
+        FeaturePacket packet_out;
+        bool packet_valid = false;
 
-        // check if we are on a 32nd sample (full frame size)
-        // if so, pack all the information into a feature packet
-        // and reset accumulators + state vars
-        if ((i + 1) % frame_length == 0) {
-            fp.frame_id = frame_id;
-            fp.energy = accumulated_energy;
-            fp.zcr = accumulated_zcr;
-            fp_collection.push_back(fp);
-
-            accumulated_energy = 0;
-            accumulated_zcr = 0;
-            have_prev = false;
-            frame_id++;
+        for (int i = 0; i < FRAME_LENGTH; i++) {
+            feature_ip(frame[i], true, packet_out, packet_valid);
         }
+
+        bool energy_ok = (packet_out.energy == expected.energy);
+        bool zcr_ok = (packet_out.zcr == expected.zcr);
+        bool valid_ok = packet_valid;
+        bool pass = energy_ok && zcr_ok && valid_ok;
+
+        printf("--------------------------------------------------\n");
+        printf("TEST: %s\n", name.c_str());
+        printf("  Energy   expected=%lu  got=%lu  %s\n",
+               expected.energy, packet_out.energy, energy_ok ? "OK" : "FAIL");
+        printf("  ZCR      expected=%d   got=%d   %s\n",
+               expected.zcr, packet_out.zcr, zcr_ok ? "OK" : "FAIL");
+        printf("  packet_valid: %s\n", valid_ok ? "OK" : "FAIL");
+        printf("  RESULT: %s\n", pass ? "PASS" : "FAIL");
+        
+        pass ? pass_count++ : fail_count++;
     }
 
-    for (size_t i = 0; i < fp_collection.size(); i++) {
-        printf("Feature Packet %ld ==> FRAME ID: %d Energy %lu ZCR: %d\n", 
-                i,
-                fp_collection[i].frame_id,
-                fp_collection[i].energy,
-                fp_collection[i].zcr);
+int main() {
+    int pass_count = 0;
+    int fail_count = 0;
+
+    struct TestCase {
+        std::string          name;
+        std::vector<int16_t> frame;
+    };
+
+    std::vector<TestCase> tests = {
+        { "all_zeros",           gen_all_zeros()    },
+        { "all_positive",        gen_all_positive() },
+        { "alternating_pos_neg", gen_alternating()  },
+        { "sine_wave",           gen_sine_wave()    },
+        { "random_noise",        gen_random_noise() },
+    };
+
+    printf("==================================================\n");
+    printf("  feature_ip testbench\n");
+    printf("==================================================\n");
+
+    for (auto& tc : tests) {
+        Expected expected = compute_expected(tc.frame);
+        run_test(tc.name, tc.frame, expected, pass_count, fail_count);
     }
 
-    return 0;
+    printf("==================================================\n");
+    printf("  Results: %d / %d passed\n", pass_count, pass_count + fail_count);
+    printf("==================================================\n");
+
+    return (fail_count == 0) ? 0 : 1;
 }
