@@ -22,3 +22,7 @@ Thumbs.db
 # Python cache
 __pycache__/
 *.pyc
+
+# hls source generated files
+hls/feature_ip_tb
+hls/feature_ip_hls/
