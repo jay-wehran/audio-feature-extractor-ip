@@ -20,7 +20,9 @@ void feature_ip(int16_t sample_in, bool sample_valid, FeaturePacket& packet_out,
     static int16_t previous_sample = 0;
     static bool have_prev = false;
 
-    #pragma HLS PIPELINE II=1
+    // increases critical path time
+    // see results.md for details
+    // #pragma HLS PIPELINE II=1
 
     packet_valid = false;
 

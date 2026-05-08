@@ -51,9 +51,9 @@ INFO: [SIM 211-1] CSim done with 0 errors.
 
 ## Synthesis Results
 
-**Tool:** Vitis HLS 2023.2  
-**Target part:** xc7z020-clg400-1 (Pynq-Z2, Zynq-7000)  
-**Target clock:** 4.00 ns (250 MHz)  
+**Tool:** Vitis HLS 2023.2
+**Target part:** xc7z020-clg400-1 (Pynq-Z2, Zynq-7000)
+**Target clock:** 4.00 ns (250 MHz)
 
 ### Timing
 
@@ -94,6 +94,32 @@ no frame buffering.
 
 ---
 
+## Pipelining Experiment
+
+`#pragma HLS PIPELINE II=1` was evaluated to determine the throughput
+impact of pipelining the top-level function. The pragma successfully
+achieved II=1 — meaning the IP could accept one new sample per clock
+cycle. However, this introduced a timing tradeoff:
+
+| Configuration | Fmax | II | Timing |
+|---------------|------|----|--------|
+| No pragma (final) | 379.08 MHz | 2-7 cycles | ✅ Meets target |
+| `#pragma HLS PIPELINE II=1` | 146.81 MHz | 1 cycle | ❌ Exceeds 4 ns budget |
+
+With the pipeline pragma, the critical path increased to 6.811 ns,
+exceeding the 4 ns clock target. The critical path ran through the
+sample counter increment, frame boundary comparison, and static variable
+writeback.
+
+For this application, II=1 throughput is unnecessary. At a typical audio
+sample rate of 48 kHz, even the unpipelined design at 379 MHz processes
+samples orders of magnitude faster than they arrive — approximately 7,900
+clock cycles are available per audio sample. The pragma was therefore
+removed in the final design, preserving timing margin while meeting all
+throughput requirements.
+
+---
+
 ## Analysis Against Design Goals
 
 | Goal | Target | Achieved |
@@ -103,3 +129,4 @@ no frame buffering.
 | No frame buffering | Streaming reduction | ✅ 0 BRAM used |
 | Lightweight resource usage | Minimal LUT/FF | ✅ <1% utilization on all resources |
 | One output per frame | packet_valid handshake | ✅ Verified in testbench |
+| Throughput | Sufficient for audio rate inputs | ✅ ~7,900 cycles available per sample at 48 kHz |
