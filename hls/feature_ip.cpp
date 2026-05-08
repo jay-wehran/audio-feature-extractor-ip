@@ -62,11 +62,13 @@ void feature_ip(
 }
 
 int64_t extract_energy(ap_int<16> sample) {
+    #pragma HLS INLINE
     int64_t s = sample;
     return s * s;
 }
 
 bool detect_zcr(ap_int<16> previous_sample, ap_int<16> current_sample) {
+    #pragma HLS INLINE
     if ((previous_sample >= 0 && current_sample < 0) ||
         (previous_sample <  0 && current_sample >= 0)) {
         return true;

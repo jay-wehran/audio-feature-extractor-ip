@@ -12,7 +12,6 @@ energy and ZCR.
 ```
 ==================================================
 feature_ip testbench
-
 TEST: all_zeros
 Energy   expected=0  got=0  OK
 ZCR      expected=0   got=0   OK
@@ -113,6 +112,24 @@ sample-by-sample.
 
 ---
 
+## HLS Optimization Pragmas
+
+The following optimization pragmas are applied in `feature_ip.cpp`:
+
+**`#pragma HLS INLINE`** is applied to both `extract_energy()` and `detect_zcr()`
+to eliminate function call overhead and enable cross-boundary optimization of
+the energy and ZCR datapaths. Inlining allows Vitis HLS to schedule the squaring
+operation and sign-comparison logic directly into the parent function's pipeline
+stages rather than treating them as separate sub-functions.
+
+**`#pragma HLS INTERFACE axis`** is applied to both stream ports to generate
+full AXI4-Stream RTL with TDATA, TVALID, and TREADY signals.
+
+**`#pragma HLS INTERFACE ap_ctrl_none`** removes the block-level handshake
+since the function is designed for continuous sample-by-sample invocation.
+
+---
+
 ## Pipelining Experiment
 
 `#pragma HLS PIPELINE II=1` was evaluated to determine the throughput
@@ -134,8 +151,8 @@ For this application, II=1 throughput is unnecessary. At a typical audio
 sample rate of 48 kHz, even the unpipelined design at 348 MHz processes
 samples orders of magnitude faster than they arrive — approximately 7,250
 clock cycles are available per audio sample. The pragma was therefore
-removed in the final design, preserving timing margin while meeting all
-throughput requirements.
+permanently removed from the final design, preserving timing margin while
+meeting all throughput requirements.
 
 ---
 
@@ -149,4 +166,5 @@ throughput requirements.
 | No frame buffering | Streaming reduction | ✅ 0 BRAM used |
 | Lightweight resource usage | Minimal LUT/FF | ✅ <1% utilization on all resources |
 | One output per frame | AXI4-Stream output valid | ✅ Verified in testbench |
+| Helper function optimization | Eliminate call overhead | ✅ `#pragma HLS INLINE` on `extract_energy()` and `detect_zcr()` |
 | Throughput | Sufficient for audio rate inputs | ✅ ~7,250 cycles available per sample at 48 kHz |
