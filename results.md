@@ -80,12 +80,12 @@ sample (minimal logic). One output record is produced every 32 samples.
 |----------|------|-----------|-------------|
 | BRAM_18K | 0    | 280       | 0%          |
 | DSP      | 1    | 220       | ~0%         |
-| FF       | 839  | 106,400   | ~0%         |
+| FF       | 838  | 106,400   | ~0%         |
 | LUT      | 437  | 53,200    | ~0%         |
 | URAM     | 0    | 0         | 0%          |
 
 The design is extremely lightweight. The single DSP block is used for the
-16-bit sample squaring operation (`mul_16s_16s_32_4_1`). The 839 flip-flops
+16-bit sample squaring operation (`mul_16s_16s_32_4_1`). The 838 flip-flops
 primarily hold the static state registers: 64-bit energy accumulator,
 32-bit ZCR counter, 32-bit frame ID, 32-bit sample counter, 16-bit
 previous sample, and associated pipeline registers. No block RAM is needed
@@ -93,6 +93,28 @@ since both energy and ZCR are computed as streaming reductions requiring
 no frame buffering.
 
 ---
+
+### Interface
+
+The following HLS interface pragmas are declared in `feature_ip.cpp` to formally
+specify port protocols:
+
+| RTL Port            | Dir | Bits | Protocol     | Description                        |
+|---------------------|-----|------|--------------|------------------------------------|
+| ap_clk              | in  | 1    | ap_ctrl_none | Clock                              |
+| ap_rst              | in  | 1    | ap_ctrl_none | Reset                              |
+| sample_in           | in  | 16   | ap_none      | Raw PCM sample input               |
+| sample_valid        | in  | 1    | ap_none      | Sample valid flag                  |
+| packet_out          | out | 128  | ap_vld       | Output feature packet (frame data) |
+| packet_out_ap_vld   | out | 1    | ap_vld       | Output valid strobe                |
+| packet_valid        | out | 1    | ap_vld       | packet_valid signal                |
+| packet_valid_ap_vld | out | 1    | ap_vld       | packet_valid valid strobe          |
+
+`ap_ctrl_none` removes the default block-level handshake (ap_start/done/idle/ready)
+since the function is designed for continuous sample-by-sample invocation.
+`ap_none` on inputs means no additional handshake overhead — the caller controls
+timing via `sample_valid`. `ap_vld` on outputs generates an explicit valid strobe
+alongside each output, matching the streaming output behavior.
 
 ## Pipelining Experiment
 
