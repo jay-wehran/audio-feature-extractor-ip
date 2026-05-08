@@ -11,6 +11,18 @@ The system is intended as a lightweight audio-analysis front end for embedded sy
 
 The design will be completed in simulation and synthesis without using a physical FPGA board.
 
+### Implementation Status
+
+The following modules are **fully implemented** in the current HLS source:
+- AXI4-Stream Input (via `hls::stream<SamplePacket>` and `#pragma HLS INTERFACE axis`)
+- Frame Counter / Frame Control
+- Energy Computation
+- Zero-Crossing Count
+- Output Formatter
+
+The following module is **planned but not yet implemented** in the current revision:
+- AXI-Lite Control/Status (documented in section 1.6 for completeness; current implementation uses fixed parameters via `ap_ctrl_none`)
+
 ### Baseline configuration
 - Input sample type: signed 16-bit integer
 - Frame length: 32 samples for initial verification
