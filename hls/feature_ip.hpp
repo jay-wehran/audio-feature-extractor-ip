@@ -1,14 +1,19 @@
 /*
  * author: Jason Wehran
 */
-
 #ifndef FEATURE_IP_HPP
 #define FEATURE_IP_HPP
 
 #include <cstdint>
 #include <cstdio>
 #include <vector>
+#include <ap_int.h>
+#include <hls_stream.h>
 
+struct SamplePacket {
+    ap_int<16> data;
+    bool last;
+};
 
 struct FeaturePacket {
     int frame_id;
@@ -16,15 +21,12 @@ struct FeaturePacket {
     int zcr;
 };
 
-void feature_ip(int16_t sample_in, 
-                bool sample_valid, 
-                FeaturePacket& packet_out, 
-                bool& packet_valid);
+void feature_ip(
+    hls::stream<SamplePacket>& s_axis,
+    hls::stream<FeaturePacket>& m_axis
+);
 
-int64_t extract_energy(int16_t sample);
-
-bool detect_zcr(int16_t previous_sample, int16_t current_sample);
-
-
+int64_t extract_energy(ap_int<16> sample);
+bool detect_zcr(ap_int<16> previous_sample, ap_int<16> current_sample);
 
 #endif // FEATURE_IP_HPP
