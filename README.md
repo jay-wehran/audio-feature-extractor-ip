@@ -1,2 +1,122 @@
-# audio-feature-extractor-ip
-A streaming fixed-point audio feature-extraction IP
+# Audio Feature Extractor IP
+
+A streaming fixed-point audio feature extraction IP implemented in Vitis HLS.
+The IP accepts signed 16-bit PCM audio samples and computes frame-based features
+for use in embedded audio analysis pipelines such as voice activity detection.
+
+## Features
+
+- **Short-Time Energy**: sum of squared samples per frame
+- **Zero-Crossing Rate (ZCR)**: count of sign changes between adjacent samples
+- **Frame length**: 32 samples
+- **Input sample width**: signed 16-bit integer (int16_t)
+- **Output per frame**: frame ID, energy (64-bit), ZCR (16-bit)
+
+---
+
+## Repository Structure
+
+```
+audio-feature-extractor-ip/
+├── hls/
+│   ├── feature_ip.hpp        # IP header: FeaturePacket struct, function prototypes
+│   ├── feature_ip.cpp        # HLS implementation: feature_ip(), extract_energy(), detect_zcr()
+│   ├── tb_feature_ip.cpp     # C++ testbench: 5 test cases with PASS/FAIL output
+│   ├── build.tcl             # Vitis HLS TCL script: runs csim + csynth
+│   └── Makefile              # Builds and runs testbench with g++
+├── python/
+│   ├── golden_model.py       # Python reference model: generates test vectors
+│   ├── test_vectors.json     # Generated test vectors (JSON)
+│   └── test_vectors.txt      # Generated test vectors (plain text)
+├── detailed_plan.md          # Full module-level architecture and interface specification
+├── initial_plan.md           # Original project proposal
+└── README.md                 # This file
+```
+---
+
+## IP Interface
+
+The top-level function signature is:
+
+```cpp
+void feature_ip(int16_t sample_in,
+                bool sample_valid,
+                FeaturePacket& packet_out,
+                bool& packet_valid);
+```
+
+One sample is processed per call. `packet_valid` is asserted only when a complete
+32-sample frame has been accumulated. See [`detailed_plan.md`](detailed_plan.md)
+for full module definitions, signal descriptions, data widths, and interface protocol.
+
+---
+
+## Architecture Overview
+
+The IP is organized into six logical modules implemented as a single HLS function
+with static state variables acting as registers:
+
+- **AXI4-Stream Input**: valid/ready handshake, one sample per transfer
+- **Frame Counter**: 6-bit sample counter, 32-bit frame ID, generates frame-done event
+- **Energy Module**: 64-bit accumulator, square-and-accumulate per sample
+- **ZCR Module**: sign comparison against previous sample, zero treated as non-negative
+- **Output Formatter**: packages frame ID + energy + ZCR into one result record per frame
+- **AXI-Lite Control/Status**: register map planned; baseline uses fixed parameters
+
+For full architecture documentation including pipelining strategy and data widths,
+see [`detailed_plan.md`](detailed_plan.md).
+
+---
+
+## Python Golden Model
+
+The golden model generates deterministic test vectors for five scenarios and
+exports them to `python/test_vectors.json` and `python/test_vectors.txt`.
+
+```bash
+cd python
+python3 golden_model.py
+```
+
+The golden model defines the reference implementation for both energy and ZCR,
+and serves as the source of truth for testbench verification.
+
+---
+
+## Building and Running the Testbench (g++)
+
+```bash
+cd hls
+make        # compile
+make run    # compile and run
+make clean  # remove binary
+```
+
+---
+
+## Vitis HLS: C Simulation and Synthesis
+
+To run C simulation and synthesis using Vitis HLS:
+
+```bash
+cd hls
+vitis_hls -f build.tcl
+```
+
+Or from within the Vitis HLS interactive prompt:
+
+```tcl
+source build.tcl
+```
+
+Target part: `xc7z020clg400-1` (Pynq-Z2), Clock: 250 MHz (4 ns period).
+
+---
+
+## Verification and Results
+
+See [`results.md`](results.md) for:
+- C simulation output (5/5 passing)
+- Synthesis timing report
+- Resource utilization table
+- Performance analysis
