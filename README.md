@@ -23,7 +23,7 @@ audio-feature-extractor-ip/
 │   ├── feature_ip.cpp        # HLS implementation: feature_ip(), extract_energy(), detect_zcr()
 │   ├── tb_feature_ip.cpp     # C++ testbench: 5 test cases with PASS/FAIL output
 │   ├── build.tcl             # Vitis HLS TCL script: runs csim + csynth
-│   └── Makefile              # Builds and runs testbench with g++
+│   └── Makefile              # Runs Vitis HLS csim and csynth via build.tcl
 ├── python/
 │   ├── golden_model.py       # Python reference model: generates test vectors
 │   ├── test_vectors.json     # Generated test vectors (JSON)
@@ -36,18 +36,20 @@ audio-feature-extractor-ip/
 
 ## IP Interface
 
-The top-level function signature is:
+The top-level function uses AXI4-Stream ports implemented via `hls::stream`
+and `#pragma HLS INTERFACE axis`:
 
 ```cpp
-void feature_ip(int16_t sample_in,
-                bool sample_valid,
-                FeaturePacket& packet_out,
-                bool& packet_valid);
+void feature_ip(
+    hls::stream<SamplePacket>& s_axis,
+    hls::stream<FeaturePacket>& m_axis
+);
 ```
 
-One sample is processed per call. `packet_valid` is asserted only when a complete
-32-sample frame has been accumulated. See [`detailed_plan.md`](detailed_plan.md)
-for full module definitions, signal descriptions, data widths, and interface protocol.
+`SamplePacket` carries a 16-bit PCM sample and a `last` flag. `FeaturePacket`
+carries `frame_id`, `energy` (64-bit), and `zcr`. One `FeaturePacket` is emitted
+to `m_axis` after every 32 samples received on `s_axis`. See
+[`detailed_plan.md`](detailed_plan.md) for full signal definitions and protocol.
 
 ---
 
