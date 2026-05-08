@@ -13,6 +13,14 @@
 
 // prototype without AXI4 implementation
 void feature_ip(int16_t sample_in, bool sample_valid, FeaturePacket& packet_out, bool& packet_valid) {
+    
+    // --- Interface pragmas ---
+    #pragma HLS INTERFACE ap_none port=sample_in
+    #pragma HLS INTERFACE ap_none port=sample_valid
+    #pragma HLS INTERFACE ap_vld port=packet_out
+    #pragma HLS INTERFACE ap_vld port=packet_valid
+    #pragma HLS INTERFACE ap_ctrl_none port=return
+    
     static uint64_t accumulated_energy = 0;
     static int accumulated_zcr = 0;
     static int frame_id = 0;
