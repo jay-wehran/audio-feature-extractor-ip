@@ -83,20 +83,13 @@ and serves as the source of truth for testbench verification.
 
 ---
 
-## Building and Running the Testbench (g++)
+## Building and Running (Vitis HLS)
 
-```bash
-cd hls
-make        # compile
-make run    # compile and run
-make clean  # remove binary
-```
+This project uses Vitis HLS-specific types (`hls::stream`, `ap_int`) and
+requires Vitis HLS for both C simulation and synthesis. Plain g++ compilation
+is not supported.
 
----
-
-## Vitis HLS: C Simulation and Synthesis
-
-To run C simulation and synthesis using Vitis HLS:
+To run C simulation and synthesis:
 
 ```bash
 cd hls
@@ -109,9 +102,13 @@ Or from within the Vitis HLS interactive prompt:
 source build.tcl
 ```
 
-Target part: `xc7z020clg400-1` (Pynq-Z2), Clock: 250 MHz (4 ns period).
+The TCL script automatically:
+1. Creates the HLS project
+2. Adds source and testbench files
+3. Runs C simulation (`csim_design`) — compiles and runs the testbench
+4. Runs synthesis (`csynth_design`) — generates RTL and reports
 
----
+Target part: `xc7z020clg400-1` (Pynq-Z2), Clock: 250 MHz (4 ns period).
 
 ## Verification and Results
 
